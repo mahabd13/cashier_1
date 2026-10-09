@@ -1,0 +1,188 @@
+import tkinter as tk
+from tkinter import messagebox
+from datetime import datetime
+
+# التأكد من التثبيت: pip install customtkinter
+try:
+    import customtkinter as ctk
+except ImportError:
+    print("يرجى تثبيت مكتبة CustomTkinter أولاً عبر الأمر:")
+    print("pip install customtkinter")
+    exit()
+
+# ضبط المظهر العام للبرنامج
+ctk.set_appearance_mode("System")  # Light/Dark حسب النظام
+ctk.set_default_color_theme("blue")
+
+
+class PriceQuoteApp(ctk.CTk):
+    def __init__(self):
+        super().__init__()
+
+        self.title("نظام عرض أسعار المنتجات")
+        self.geometry("900 x 650")
+        self.resizable(True, True)
+
+        # البيانات المخزنة
+        self.items = []
+
+        self.create_widgets()
+
+    def create_widgets(self):
+        # --- العنوان الرئيسي ---
+        title_label = ctk.CTkLabel(
+            self,
+            text="برنامج إدارة وعرض أسعار المنتجات",
+            font=ctk.CTkFont(size=22, weight="bold")
+        )
+        title_label.pack(pady=15)
+
+        # --- الحاوية الرئيسية (قسمين) ---
+        main_frame = ctk.CTkFrame(self)
+        main_frame.pack(fill="both", expand=True, padx=20, pady=10)
+
+        # --- 1. قسم إدخال المنتجات والبيانات (الجانب الأيمن) ---
+        input_frame = ctk.CTkFrame(main_frame, width=300)
+        input_frame.pack(side="right", fill="y", padx=10, pady=10)
+
+        # اسم العميل
+        ctk.CTkLabel(input_frame, text="اسم العميل:", font=ctk.CTkFont(size=14)).pack(anchor="e", padx=15, pady=(10, 2))
+        self.customer_entry = ctk.CTkEntry(input_frame, placeholder_text="أدخل اسم العميل")
+        self.customer_entry.pack(fill="x", padx=15, pady=5)
+
+        # اسم المنتج
+        ctk.CTkLabel(input_frame, text="اسم المنتج:", font=ctk.CTkFont(size=14)).pack(anchor="e", padx=15, pady=(10, 2))
+        self.product_entry = ctk.CTkEntry(input_frame, placeholder_text="مثال: كمبيوتر محمول")
+        self.product_entry.pack(fill="x", padx=15, pady=5)
+
+        # السعر
+        ctk.CTkLabel(input_frame, text="سعر الوحدة ($):", font=ctk.CTkFont(size=14)).pack(anchor="e", padx=15, pady=(10, 2))
+        self.price_entry = ctk.CTkEntry(input_frame, placeholder_text="0.00")
+        self.price_entry.pack(fill="x", padx=15, pady=5)
+
+        # الكمية
+        ctk.CTkLabel(input_frame, text="الكمية:", font=ctk.CTkFont(size=14)).pack(anchor="e", padx=15, pady=(10, 2))
+        self.qty_entry = ctk.CTkEntry(input_frame, placeholder_text="1")
+        self.qty_entry.pack(fill="x", padx=15, pady=5)
+
+        # نسبة الخصم
+        ctk.CTkLabel(input_frame, text="نسبة الخصم (%):", font=ctk.CTkFont(size=14)).pack(anchor="e", padx=15, pady=(10, 2))
+        self.discount_entry = ctk.CTkEntry(input_frame, placeholder_text="0")
+        self.discount_entry.pack(fill="x", padx=15, pady=5)
+
+        # أزرار الإجراءات
+        btn_add = ctk.CTkButton(input_frame, text="إضافة للمستند", fg_color="green", hover_color="#006400", command=self.add_item)
+        btn_add.pack(fill="x", padx=15, pady=(20, 5))
+
+        btn_clear = ctk.CTkButton(input_frame, text="مسح القائمة", fg_color="red", hover_color="#8B0000", command=self.clear_all)
+        btn_clear.pack(fill="x", padx=15, pady=5)
+
+        btn_save = ctk.CTkButton(input_frame, text="حفظ عرض السعر (TXT)", fg_color="#1f538d", command=self.export_quote)
+        btn_save.pack(fill="x", padx=15, pady=(15, 5))
+
+        # --- 2. قسم عرض الفاتورة / الجداول (الجانب الأيسر) ---
+        display_frame = ctk.CTkFrame(main_frame)
+        display_frame.pack(side="left", fill="both", expand=True, padx=10, pady=10)
+
+        ctk.CTkLabel(display_frame, text="معاينة عرض السعر", font=ctk.CTkFont(size=16, weight="bold")).pack(pady=5)
+
+        self.textbox = ctk.CTkTextbox(display_frame, font=ctk.CTkFont(family="Courier", size=13))
+        self.textbox.pack(fill="both", expand=True, padx=10, pady=10)
+
+        # عرض الترويسة المبدئية
+        self.update_display()
+
+    def add_item(self):
+        product = self.product_entry.get().strip()
+        price_str = self.price_entry.get().strip()
+        qty_str = self.qty_entry.get().strip()
+        discount_str = self.discount_entry.get().strip() or "0"
+
+        if not product or not price_str or not qty_str:
+            messagebox.showwarning("تنبيه", "يرجى إدخال اسم المنتج والسعر والكمية بشكل صحيح.")
+            return
+
+        try:
+            price = float(price_str)
+            qty = int(qty_str)
+            discount = float(discount_str)
+
+            total = price * qty * (1 - discount / 100)
+
+            self.items.append({
+                "product": product,
+                "price": price,
+                "qty": qty,
+                "discount": discount,
+                "total": total
+            })
+
+            # مسح حقول الإدخال الفرعية
+            self.product_entry.delete(0, 'end')
+            self.price_entry.delete(0, 'end')
+            self.qty_entry.delete(0, 'end')
+            self.discount_entry.delete(0, 'end')
+
+            self.update_display()
+
+        except ValueError:
+            messagebox.showerror("خطأ", "يرجى إدخال أرقام صحيحة للسعر والكمية والخصم.")
+
+    def update_display(self):
+        self.textbox.delete("1.0", tk.END)
+
+        customer = self.customer_entry.get().strip() or "عميل عام"
+        now = datetime.now().strftime("%Y-%m-%d %H:%M")
+
+        header = f"="*55 + "\n"
+        header += f"                 عرض سعر منتجات\n"
+        header += f"="*55 + "\n"
+        header += f"التاريخ: {now}\n"
+        header += f"العميل:  {customer}\n"
+        header += "-"*55 + "\n"
+        header += f"{'المنتج':<15} | {'السعر':<8} | {'الكمية':<5} | {'خصم %':<6} | {'الإجمالي':<8}\n"
+        header += "-"*55 + "\n"
+
+        self.textbox.insert(tk.END, header)
+
+        subtotal = 0.0
+        for item in self.items:
+            row = f"{item['product']:<15} | {item['price']:<8.2f} | {item['qty']:<5} | {item['discount']:<6.1f} | {item['total']:<8.2f}\n"
+            self.textbox.insert(tk.END, row)
+            subtotal += item['total']
+
+        tax = subtotal * 0.15  # ضريبة قيمة مضافة افتراضية 15%
+        grand_total = subtotal + tax
+
+        footer = "-"*55 + "\n"
+        footer += f"المجموع الفرعي: {subtotal:.2f} $\n"
+        footer += f"الضريبة (15%):  {tax:.2f} $\n"
+        footer += f"الإجمالي النهائي: {grand_total:.2f} $\n"
+        footer += "="*55 + "\n"
+        footer += "ملاحظة: هذا العرض ساري لمدة 15 يوماً من تاريخه.\n"
+
+        self.textbox.insert(tk.END, footer)
+
+    def clear_all(self):
+        self.items.clear()
+        self.update_display()
+
+    def export_quote(self):
+        if not self.items:
+            messagebox.showwarning("تنبيه", "لا توجد عناصر لإصدار عرض سعر!")
+            return
+
+        file_content = self.textbox.get("1.0", tk.END)
+        filename = f"Price_Quote_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
+
+        try:
+            with open(filename, "w", encoding="utf-8") as f:
+                f.write(file_content)
+            messagebox.showinfo("نجاح", f"تم حفظ عرض السعر بنجاح في الملف:\n{filename}")
+        except Exception as e:
+            messagebox.showerror("خطأ", f"تعذر حفظ الملف: {str(e)}")
+
+
+if __name__ == "__main__":
+    app = PriceQuoteApp()
+    app.mainloop()
